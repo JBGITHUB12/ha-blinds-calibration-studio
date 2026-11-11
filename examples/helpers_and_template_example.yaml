@@ -1,0 +1,44 @@
+# ==============================================================================
+# Example Home Assistant Package: Helpers + Template Cover Blueprint Instance
+# Place in /config/packages/living_room_blind_calibration.yaml
+# ==============================================================================
+
+input_number:
+  living_room_blind_start_limit:
+    name: "Living Room Blind Start Limit (Open)"
+    min: 0
+    max: 100
+    step: 1
+    initial: 96
+    unit_of_measurement: "%"
+    icon: mdi:arrow-collapse-up
+
+  living_room_blind_stop_limit:
+    name: "Living Room Blind Stop Limit (Close)"
+    min: 0
+    max: 100
+    step: 1
+    initial: 8
+    unit_of_measurement: "%"
+    icon: mdi:arrow-collapse-down
+
+input_button:
+  living_room_blind_snap_start:
+    name: "Living Room Blind - Set Current as Start Limit"
+    icon: mdi:arrow-up-bold-box-outline
+  living_room_blind_snap_stop:
+    name: "Living Room Blind - Set Current as Stop Limit"
+    icon: mdi:arrow-down-bold-box-outline
+
+template:
+  - name: "Living Room Blind (Calibrated)"
+    unique_id: living_room_blind_calibrated
+    use_blueprint:
+      path: JBGITHUB12/calibrated_cover_wrapper.yaml
+      input:
+        source_cover: cover.living_room_blind
+        cover_device_class: shade
+        start_limit_static: 96
+        start_limit_helper: input_number.living_room_blind_start_limit
+        stop_limit_static: 8
+        stop_limit_helper: input_number.living_room_blind_stop_limit

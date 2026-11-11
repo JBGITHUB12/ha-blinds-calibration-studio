@@ -1,0 +1,130 @@
+blueprint:
+  name: "🪟 Calibrated Soft-Limit Cover Wrapper (Template Cover)"
+  author: JBGITHUB12
+  domain: template
+  homeassistant:
+    min_version: "2024.10.0"
+  source_url: https://github.com/JBGITHUB12/ha-blinds-calibration-studio/blob/main/blueprints/template/JBGITHUB12/calibrated_cover_wrapper.yaml
+  description: >
+    Creates a software-calibrated virtual `cover` entity that linearly maps `0%–100%` onto
+    your physical blind or curtain's `[Stop Limit .. Start Limit]` range, so `0%` is always
+    perfectly aligned with your windowsill/floor and `100%` stops cleanly at your top header.
+
+  input:
+    source_cover:
+      name: "Physical Cover Entity"
+      description: "The underlying raw `cover` entity (e.g. Zigbee2MQTT, ZHA, Matter, Tuya)."
+      selector:
+        entity:
+          domain: cover
+    cover_device_class:
+      name: "Cover Device Class"
+      default: "shade"
+      selector:
+        select:
+          options:
+            - "shade"
+            - "blind"
+            - "curtain"
+            - "shutter"
+            - "awning"
+            - "window"
+    start_limit_static:
+      name: "Fallback Start Limit — Open (%)"
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+    start_limit_helper:
+      name: "Start Limit Helper (Optional)"
+      description: "Optional `input_number` / `number` entity overriding Fallback Start Limit."
+      default: ""
+      selector:
+        entity:
+          domain:
+            - input_number
+            - number
+    stop_limit_static:
+      name: "Fallback Stop Limit — Close (%)"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+    stop_limit_helper:
+      name: "Stop Limit Helper (Optional)"
+      description: "Optional `input_number` / `number` entity overriding Fallback Stop Limit."
+      default: ""
+      selector:
+        entity:
+          domain:
+            - input_number
+            - number
+
+variables:
+  source_cover: !input source_cover
+  cover_device_class: !input cover_device_class
+  start_limit_static: !input start_limit_static
+  start_limit_helper: !input start_limit_helper
+  stop_limit_static: !input stop_limit_static
+  stop_limit_helper: !input stop_limit_helper
+
+cover:
+  device_class: !input cover_device_class
+  availability: "{{ states(source_cover) not in ('unknown', 'unavailable') }}"
+  state: >-
+    {% set raw_state = states(source_cover) %}
+    {% if raw_state in ('opening', 'closing') %}
+      {{ raw_state }}
+    {% else %}
+      {% set raw = state_attr(source_cover, 'current_position') | float(0) %}
+      {% set start = states(start_limit_helper) | float(start_limit_static) if (start_limit_helper and states(start_limit_helper) | is_number) else (start_limit_static | float(100)) %}
+      {% set stop = states(stop_limit_helper) | float(stop_limit_static) if (stop_limit_helper and states(stop_limit_helper) | is_number) else (stop_limit_static | float(0)) %}
+      {% set scaled = raw if start == stop else (((raw - stop) / (start - stop)) * 100) %}
+      {{ 'closed' if scaled <= 1 else 'open' }}
+    {% endif %}
+  position: >-
+    {% set raw = state_attr(source_cover, 'current_position') | float(0) %}
+    {% set start = states(start_limit_helper) | float(start_limit_static) if (start_limit_helper and states(start_limit_helper) | is_number) else (start_limit_static | float(100)) %}
+    {% set stop = states(stop_limit_helper) | float(stop_limit_static) if (stop_limit_helper and states(stop_limit_helper) | is_number) else (stop_limit_static | float(0)) %}
+    {% if start == stop %}
+      {{ raw | round(0) | int }}
+    {% else %}
+      {% set pct = (((raw - stop) / (start - stop)) * 100) | round(0) | int %}
+      {{ [0, [100, pct] | min] | max }}
+    {% endif %}
+  open_cover:
+    - action: cover.set_cover_position
+      target:
+        entity_id: !input source_cover
+      data:
+        position: >-
+          {% set start = states(start_limit_helper) | float(start_limit_static) if (start_limit_helper and states(start_limit_helper) | is_number) else (start_limit_static | float(100)) %}
+          {{ start | round(0) | int }}
+  close_cover:
+    - action: cover.set_cover_position
+      target:
+        entity_id: !input source_cover
+      data:
+        position: >-
+          {% set stop = states(stop_limit_helper) | float(stop_limit_static) if (stop_limit_helper and states(stop_limit_helper) | is_number) else (stop_limit_static | float(0)) %}
+          {{ stop | round(0) | int }}
+  stop_cover:
+    - action: cover.stop_cover
+      target:
+        entity_id: !input source_cover
+  set_cover_position:
+    - action: cover.set_cover_position
+      target:
+        entity_id: !input source_cover
+      data:
+        position: >-
+          {% set start = states(start_limit_helper) | float(start_limit_static) if (start_limit_helper and states(start_limit_helper) | is_number) else (start_limit_static | float(100)) %}
+          {% set stop = states(stop_limit_helper) | float(stop_limit_static) if (stop_limit_helper and states(stop_limit_helper) | is_number) else (stop_limit_static | float(0)) %}
+          {% set target_raw = (stop + ((position / 100.0) * (start - stop))) | round(0) | int %}
+          {{ [0, [100, target_raw] | min] | max }}

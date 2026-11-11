@@ -1,0 +1,801 @@
+blueprint:
+  name: "🪟 Blind & Curtain Limit Calibration & Protection Studio"
+  author: JBGITHUB12
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  source_url: https://github.com/JBGITHUB12/ha-blinds-calibration-studio/blob/main/blueprints/automation/JBGITHUB12/blind_curtain_calibration_studio.yaml
+  description: >
+    ### 🪟 Visual-Grade Soft-Limit Calibration, Overshoot Guard & Precision Jog Controller
+
+    Adds software start/stop limit calibration, overshoot clamping, 1-tap limit snapping,
+    precision motor nudging (`+5%`, `+1%`, `STOP`, `-1%`, `-5%`), midpoint positioning,
+    motor polarity inversion, Zigbee2MQTT hardware sync, and optional sunrise/sunset
+    scheduling to **any** Home Assistant `cover` entity (Zigbee2MQTT, ZHA, Matter, Tuya,
+    Aqara, Zemismart, SwitchBot, IKEA, Shelly, ESPHome).
+
+
+    **Key Capabilities:**
+
+    - **Start (Open) & Stop (Close) Soft Limits:** Use built-in sliders or bind `input_number` helpers for live dashboard adjustment.
+
+    - **Automatic Open/Close Interception:** Intercepts `cover.open_cover` and `cover.close_cover` calls (wall switches, voice assistants, HomeKit/Google Home) and redirects directly to your calibrated Start/Stop percentages.
+
+    - **Overshoot Clamping Guardrail:** Automatically brings covers back inside `[Stop Limit .. Start Limit]` if manually driven past safe window bounds.
+
+    - **1-Tap "Set Current as Limit" & Precision Jogging:** Optional `input_button` triggers to snap current live position as Start/Stop limit, jog `+5% / +1% / STOP / -1% / -5%`, or drive to calibrated Midpoint.
+
+    - **Auto-Discovery:** Companion battery and reverse-direction entities on the same device are detected automatically if not explicitly set.
+
+  input:
+    cover_section:
+      name: "1. Target Blind / Curtain & Motor Direction"
+      icon: mdi:blinds-horizontal
+      description: "Select one or more cover entities to protect and calibrate."
+      input:
+        target_cover:
+          name: "🪟 Target Blind(s) or Curtain(s)"
+          description: "One or more `cover` entities controlled by this calibration studio instance."
+          selector:
+            entity:
+              filter:
+                - domain: cover
+              multiple: true
+        reverse_direction_switch:
+          name: "🔄 Reverse Direction Switch (Optional)"
+          description: >
+            Optional `switch` entity (e.g. `switch.<blind>_reverse_direction` from Zigbee2MQTT/ZHA).
+            If left empty, the blueprint automatically searches the cover's device for a `reverse_direction` switch when Polarity Sync is enabled.
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain: switch
+              multiple: false
+        sync_invert_direction:
+          name: "⚙️ Enforce Motor Direction Polarity on Startup"
+          description: "Enable only if you want Home Assistant startup to enforce the motor polarity toggle below."
+          default: false
+          selector:
+            boolean: {}
+        invert_direction_state:
+          name: "↕️ Inverted Motor Polarity"
+          description: "When Polarity Enforcement is enabled above: `true` turns ON `reverse_direction`, `false` turns it OFF."
+          default: false
+          selector:
+            boolean: {}
+
+    limits_section:
+      name: "2. Start (Open) & Stop (Close) Soft Limits"
+      icon: mdi:arrow-expand-vertical
+      description: >
+        Set fallback calibration limits using the sliders below, or attach `input_number` / `number`
+        helpers so you can tune and snap limits live from any dashboard or the Calibration Studio web panel.
+      input:
+        start_limit_static:
+          name: "🟢 Fallback Start Position — Open Limit (%)"
+          description: "Maximum open position (`0–100%`). Used whenever no Start Limit Helper is linked."
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+        start_limit_helper:
+          name: "🟢 Start Limit Helper Entity (Optional)"
+          description: "Optional `input_number` or `number` helper (0–100%) for live Open Limit control and 1-tap 'Snap Current' saving."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_number
+                    - number
+              multiple: false
+        stop_limit_static:
+          name: "🔴 Fallback Stop Position — Close Limit (%)"
+          description: "Minimum closed position (`0–100%`). Used whenever no Stop Limit Helper is linked."
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+              mode: slider
+        stop_limit_helper:
+          name: "🔴 Stop Limit Helper Entity (Optional)"
+          description: "Optional `input_number` or `number` helper (0–100%) for live Close Limit control and 1-tap 'Snap Current' saving."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_number
+                    - number
+              multiple: false
+        intercept_open_close_commands:
+          name: "🛡️ Intercept Open & Close Commands"
+          description: >
+            When `cover.open_cover` or `cover.close_cover` is called on the target cover, immediately
+            replace it with `cover.set_cover_position` to your calibrated Start or Stop limit (whenever Start < 100% or Stop > 0%).
+          default: true
+          selector:
+            boolean: {}
+        enforce_overshoot_clamping:
+          name: "🚧 Enforce Soft-Limit Overshoot Clamping"
+          description: >
+            If a cover settles outside `[Stop Limit .. Start Limit]` (e.g. from manual drag or physical motor tug),
+            automatically drive it back to the nearest calibrated boundary.
+          default: true
+          selector:
+            boolean: {}
+        settle_delay:
+          name: "⏱️ Position Settle Debounce Delay"
+          description: "Wait time after position stops changing before checking overshoot clamping (prevents mid-travel interruption)."
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 4
+          selector:
+            duration: {}
+
+    studio_buttons_section:
+      name: "3. Interactive Calibration, Snap & Precision Jog Buttons (Optional)"
+      icon: mdi:tune-vertical
+      collapsed: true
+      description: >
+        Optionally connect `input_button` / `button` helpers to replicate full Studio controls
+        (`Set Current as Start`, `Set Current as Stop`, `+5%`, `+1%`, `STOP`, `-1%`, `-5%`, `Midpoint`, and `Z2M Hardware Reset`) on native Lovelace cards.
+      input:
+        snap_start_button:
+          name: "📌 Button: Set Current Position as Start (Open) Limit"
+          description: "Saves the cover's current live position into your Start Limit Helper."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        snap_stop_button:
+          name: "📌 Button: Set Current Position as Stop (Close) Limit"
+          description: "Saves the cover's current live position into your Stop Limit Helper."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        test_open_button:
+          name: "⬆️ Button: Drive to Start (Open) Limit"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        test_midpoint_button:
+          name: "↕️ Button: Drive to Calibrated Midpoint"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        test_close_button:
+          name: "⬇️ Button: Drive to Stop (Close) Limit"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        jog_up_5_button:
+          name: "⏫ Button: Step Up +5%"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        jog_up_1_button:
+          name: "🔼 Button: Fine Nudge Up +1%"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        stop_button:
+          name: "🛑 Button: Emergency Stop"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        jog_down_1_button:
+          name: "🔽 Button: Fine Nudge Down -1%"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        jog_down_5_button:
+          name: "⏬ Button: Step Down -5%"
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        hardware_calibrate_button:
+          name: "🔧 Button: Zigbee2MQTT Hardware Calibration Reset"
+          description: "Publishes `{\"limits_calibration\": \"reset\"}` to `<z2m_base_topic>/<cover_object_id>/set`."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain:
+                    - input_button
+                    - button
+              multiple: false
+        z2m_base_topic:
+          name: "📡 Zigbee2MQTT Base Topic"
+          description: "Used only when clicking the Zigbee2MQTT Hardware Calibration Reset button."
+          default: "zigbee2mqtt"
+          selector:
+            text: {}
+
+    schedule_and_alerts_section:
+      name: "4. Sunrise / Sunset Schedule & Battery Health (Optional)"
+      icon: mdi:weather-sunset
+      collapsed: true
+      description: "Optional daily solar automation (respecting your calibrated Start/Stop limits) and low-battery alerts."
+      input:
+        enable_sunrise_open:
+          name: "🌅 Open to Calibrated Start Limit at Sunrise"
+          default: false
+          selector:
+            boolean: {}
+        sunrise_offset:
+          name: "🌅 Sunrise Offset"
+          description: "Positive or negative offset from sunrise (e.g. `00:30:00` for 30 min after sunrise)."
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        enable_sunset_close:
+          name: "🌇 Close to Calibrated Stop Limit at Sunset"
+          default: false
+          selector:
+            boolean: {}
+        sunset_offset:
+          name: "🌇 Sunset Offset"
+          description: "Positive or negative offset from sunset (e.g. `-00:15:00` for 15 min before sunset)."
+          default:
+            hours: 0
+            minutes: 0
+            seconds: 0
+          selector:
+            duration: {}
+        enable_low_battery_alert:
+          name: "🔋 Enable Low-Battery Notification"
+          default: false
+          selector:
+            boolean: {}
+        battery_sensor:
+          name: "🔋 Battery Sensor Override (Optional)"
+          description: "Leave empty to auto-detect the battery sensor belonging to the cover device."
+          default: []
+          selector:
+            entity:
+              filter:
+                - domain: sensor
+                  device_class: battery
+              multiple: false
+        low_battery_threshold:
+          name: "🔋 Low-Battery Threshold (%)"
+          default: 20
+          selector:
+            number:
+              min: 5
+              max: 50
+              step: 5
+              unit_of_measurement: "%"
+              mode: slider
+        notify_service:
+          name: "📣 Notification Action (Optional)"
+          description: "Service to call on low battery (e.g. `notify.persistent_notification` or `notify.mobile_app_phone`)."
+          default: "notify.persistent_notification"
+          selector:
+            text: {}
+
+mode: parallel
+max: 10
+max_exceeded: silent
+
+trigger_variables:
+  tv_target_cover: !input target_cover
+  tv_enable_batt: !input enable_low_battery_alert
+  tv_batt_sensor: !input battery_sensor
+  tv_batt_thresh: !input low_battery_threshold
+
+triggers:
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: cover
+      service: open_cover
+    id: service_open
+
+  - trigger: event
+    event_type: call_service
+    event_data:
+      domain: cover
+      service: close_cover
+    id: service_close
+
+  - trigger: state
+    entity_id: !input target_cover
+    attribute: current_position
+    for: !input settle_delay
+    id: position_settled
+
+  - trigger: state
+    entity_id: !input start_limit_helper
+    for:
+      seconds: 2
+    id: limit_helper_changed
+
+  - trigger: state
+    entity_id: !input stop_limit_helper
+    for:
+      seconds: 2
+    id: limit_helper_changed
+
+  - trigger: state
+    entity_id: !input snap_start_button
+    id: snap_start
+
+  - trigger: state
+    entity_id: !input snap_stop_button
+    id: snap_stop
+
+  - trigger: state
+    entity_id: !input test_open_button
+    id: drive_start
+
+  - trigger: state
+    entity_id: !input test_midpoint_button
+    id: drive_midpoint
+
+  - trigger: state
+    entity_id: !input test_close_button
+    id: drive_stop
+
+  - trigger: state
+    entity_id: !input jog_up_5_button
+    id: jog_up_5
+
+  - trigger: state
+    entity_id: !input jog_up_1_button
+    id: jog_up_1
+
+  - trigger: state
+    entity_id: !input stop_button
+    id: emergency_stop
+
+  - trigger: state
+    entity_id: !input jog_down_1_button
+    id: jog_down_1
+
+  - trigger: state
+    entity_id: !input jog_down_5_button
+    id: jog_down_5
+
+  - trigger: state
+    entity_id: !input hardware_calibrate_button
+    id: hardware_calibrate
+
+  - trigger: sun
+    event: sunrise
+    offset: !input sunrise_offset
+    id: sunrise_open
+
+  - trigger: sun
+    event: sunset
+    offset: !input sunset_offset
+    id: sunset_close
+
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+  - trigger: template
+    id: low_battery
+    value_template: >-
+      {% if not tv_enable_batt %}
+        false
+      {% else %}
+        {% set covers = [tv_target_cover] if tv_target_cover is string else tv_target_cover %}
+        {% set ns = namespace(low=false) %}
+        {% if tv_batt_sensor is string and tv_batt_sensor | length > 0 %}
+          {% if states(tv_batt_sensor) | is_number and (states(tv_batt_sensor) | float(100)) <= (tv_batt_thresh | float(20)) %}
+            {% set ns.low = true %}
+          {% endif %}
+        {% elif tv_batt_sensor is iterable and tv_batt_sensor | count > 0 %}
+          {% set b0 = tv_batt_sensor | first %}
+          {% if states(b0) | is_number and (states(b0) | float(100)) <= (tv_batt_thresh | float(20)) %}
+            {% set ns.low = true %}
+          {% endif %}
+        {% else %}
+          {% for c in covers %}
+            {% set dev = device_id(c) %}
+            {% if dev %}
+              {% set b_auto = device_entities(dev) | expand
+                | selectattr('domain', 'eq', 'sensor')
+                | selectattr('attributes.device_class', 'defined')
+                | selectattr('attributes.device_class', 'eq', 'battery')
+                | map(attribute='entity_id') | first | default(none) %}
+              {% if b_auto and states(b_auto) | is_number and (states(b_auto) | float(100)) <= (tv_batt_thresh | float(20)) %}
+                {% set ns.low = true %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.low }}
+      {% endif %}
+    for:
+      minutes: 5
+
+variables:
+  raw_target_cover: !input target_cover
+  covers: "{{ [raw_target_cover] if raw_target_cover is string else raw_target_cover }}"
+  primary_cover: "{{ covers | first }}"
+  start_limit_static: !input start_limit_static
+  start_limit_helper: !input start_limit_helper
+  stop_limit_static: !input stop_limit_static
+  stop_limit_helper: !input stop_limit_helper
+  intercept_open_close_commands: !input intercept_open_close_commands
+  enforce_overshoot_clamping: !input enforce_overshoot_clamping
+  reverse_direction_switch: !input reverse_direction_switch
+  sync_invert_direction: !input sync_invert_direction
+  invert_direction_state: !input invert_direction_state
+  z2m_base_topic: !input z2m_base_topic
+  enable_sunrise_open: !input enable_sunrise_open
+  enable_sunset_close: !input enable_sunset_close
+  enable_low_battery_alert: !input enable_low_battery_alert
+  low_battery_threshold: !input low_battery_threshold
+  notify_service: !input notify_service
+
+  start_helper_id: >-
+    {% if start_limit_helper is string and start_limit_helper | length > 0 %}
+      {{ start_limit_helper }}
+    {% elif start_limit_helper is iterable and start_limit_helper | count > 0 %}
+      {{ start_limit_helper | first }}
+    {% else %}
+      {{ '' }}
+    {% endif %}
+
+  stop_helper_id: >-
+    {% if stop_limit_helper is string and stop_limit_helper | length > 0 %}
+      {{ stop_limit_helper }}
+    {% elif stop_limit_helper is iterable and stop_limit_helper | count > 0 %}
+      {{ stop_limit_helper | first }}
+    {% else %}
+      {{ '' }}
+    {% endif %}
+
+  effective_start_limit: >-
+    {% if start_helper_id != '' and states(start_helper_id) | is_number %}
+      {{ states(start_helper_id) | float(start_limit_static) | round(0) | int }}
+    {% else %}
+      {{ start_limit_static | int }}
+    {% endif %}
+
+  effective_stop_limit: >-
+    {% if stop_helper_id != '' and states(stop_helper_id) | is_number %}
+      {{ states(stop_helper_id) | float(stop_limit_static) | round(0) | int }}
+    {% else %}
+      {{ stop_limit_static | int }}
+    {% endif %}
+
+  lower_bound: "{{ [effective_start_limit | int, effective_stop_limit | int] | min }}"
+  upper_bound: "{{ [effective_start_limit | int, effective_stop_limit | int] | max }}"
+  midpoint_position: "{{ ((effective_start_limit | float + effective_stop_limit | float) / 2) | round(0) | int }}"
+
+actions:
+  - choose:
+      # 1. Intercept cover.open_cover and redirect to calibrated Start Limit
+      - conditions:
+          - condition: trigger
+            id: service_open
+          - condition: template
+            value_template: "{{ intercept_open_close_commands and (effective_start_limit | int) != 100 }}"
+        sequence:
+          - variables:
+              svc_entities_raw: "{{ trigger.event.data.service_data.entity_id | default([]) }}"
+              svc_entities: "{{ [svc_entities_raw] if svc_entities_raw is string else svc_entities_raw }}"
+              matched_covers: "{{ covers | select('in', svc_entities) | list }}"
+          - if:
+              - condition: template
+                value_template: "{{ matched_covers | count > 0 }}"
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: "{{ matched_covers }}"
+                data:
+                  position: "{{ effective_start_limit | int }}"
+
+      # 2. Intercept cover.close_cover and redirect to calibrated Stop Limit
+      - conditions:
+          - condition: trigger
+            id: service_close
+          - condition: template
+            value_template: "{{ intercept_open_close_commands and (effective_stop_limit | int) != 0 }}"
+        sequence:
+          - variables:
+              svc_entities_raw: "{{ trigger.event.data.service_data.entity_id | default([]) }}"
+              svc_entities: "{{ [svc_entities_raw] if svc_entities_raw is string else svc_entities_raw }}"
+              matched_covers: "{{ covers | select('in', svc_entities) | list }}"
+          - if:
+              - condition: template
+                value_template: "{{ matched_covers | count > 0 }}"
+            then:
+              - action: cover.set_cover_position
+                target:
+                  entity_id: "{{ matched_covers }}"
+                data:
+                  position: "{{ effective_stop_limit | int }}"
+
+      # 3. Soft-Limit Overshoot Clamping (after position settles or helper bounds updated)
+      - conditions:
+          - condition: trigger
+            id:
+              - position_settled
+              - limit_helper_changed
+          - condition: template
+            value_template: "{{ enforce_overshoot_clamping }}"
+        sequence:
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    cur_entity: "{{ repeat.item }}"
+                    cur_state: "{{ states(cur_entity) }}"
+                    cur_pos: "{{ state_attr(cur_entity, 'current_position') }}"
+                - if:
+                    - condition: template
+                      value_template: >-
+                        {{ cur_state not in ['opening', 'closing', 'unavailable', 'unknown']
+                           and cur_pos is not none and cur_pos | is_number }}
+                  then:
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ (cur_pos | int) > (upper_bound | int) }}"
+                          sequence:
+                            - action: cover.set_cover_position
+                              target:
+                                entity_id: "{{ cur_entity }}"
+                              data:
+                                position: "{{ upper_bound | int }}"
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ (cur_pos | int) < (lower_bound | int) }}"
+                          sequence:
+                            - action: cover.set_cover_position
+                              target:
+                                entity_id: "{{ cur_entity }}"
+                              data:
+                                position: "{{ lower_bound | int }}"
+
+      # 4. Snap Current Live Position as Start (Open) Limit
+      - conditions:
+          - condition: trigger
+            id: snap_start
+          - condition: template
+            value_template: "{{ start_helper_id != '' }}"
+        sequence:
+          - variables:
+              live_pos: "{{ state_attr(primary_cover, 'current_position') | default(100, true) | int }}"
+              helper_domain: "{{ start_helper_id.split('.')[0] }}"
+          - action: "{{ helper_domain }}.set_value"
+            target:
+              entity_id: "{{ start_helper_id }}"
+            data:
+              value: "{{ live_pos }}"
+
+      # 5. Snap Current Live Position as Stop (Close) Limit
+      - conditions:
+          - condition: trigger
+            id: snap_stop
+          - condition: template
+            value_template: "{{ stop_helper_id != '' }}"
+        sequence:
+          - variables:
+              live_pos: "{{ state_attr(primary_cover, 'current_position') | default(0, true) | int }}"
+              helper_domain: "{{ stop_helper_id.split('.')[0] }}"
+          - action: "{{ helper_domain }}.set_value"
+            target:
+              entity_id: "{{ stop_helper_id }}"
+            data:
+              value: "{{ live_pos }}"
+
+      # 6. Motion Test Buttons: Drive to Start, Midpoint, or Stop
+      - conditions:
+          - condition: trigger
+            id: drive_start
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_start_limit | int }}"
+
+      - conditions:
+          - condition: trigger
+            id: drive_midpoint
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ midpoint_position | int }}"
+
+      - conditions:
+          - condition: trigger
+            id: drive_stop
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_stop_limit | int }}"
+
+      # 7. Precision Jog / Nudge Controls (+5%, +1%, STOP, -1%, -5%)
+      - conditions:
+          - condition: trigger
+            id: emergency_stop
+        sequence:
+          - action: cover.stop_cover
+            target:
+              entity_id: "{{ covers }}"
+
+      - conditions:
+          - condition: trigger
+            id:
+              - jog_up_5
+              - jog_up_1
+              - jog_down_1
+              - jog_down_5
+        sequence:
+          - variables:
+              jog_delta: >-
+                {% if trigger.id == 'jog_up_5' %}5
+                {% elif trigger.id == 'jog_up_1' %}1
+                {% elif trigger.id == 'jog_down_1' %}-1
+                {% else %}-5{% endif %}
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    c_pos: "{{ state_attr(repeat.item, 'current_position') | default(50, true) | int }}"
+                    next_pos: "{{ [0, [100, c_pos + (jog_delta | int)] | min] | max }}"
+                - action: cover.set_cover_position
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    position: "{{ next_pos }}"
+
+      # 8. Zigbee2MQTT Hardware Calibration Reset
+      - conditions:
+          - condition: trigger
+            id: hardware_calibrate
+        sequence:
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    obj_id: "{{ repeat.item.split('.')[1] }}"
+                - action: mqtt.publish
+                  continue_on_error: true
+                  data:
+                    topic: "{{ z2m_base_topic }}/{{ obj_id }}/set"
+                    payload: '{"limits_calibration": "reset"}'
+
+      # 9. Sunrise / Sunset Calibrated Automation
+      - conditions:
+          - condition: trigger
+            id: sunrise_open
+          - condition: template
+            value_template: "{{ enable_sunrise_open }}"
+        sequence:
+          - action: cover.set_cover_position
+            continue_on_error: true
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_start_limit | int }}"
+
+      - conditions:
+          - condition: trigger
+            id: sunset_close
+          - condition: template
+            value_template: "{{ enable_sunset_close }}"
+        sequence:
+          - action: cover.set_cover_position
+            continue_on_error: true
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_stop_limit | int }}"
+
+      # 10. Startup Motor Polarity Sync
+      - conditions:
+          - condition: trigger
+            id: ha_start
+          - condition: template
+            value_template: "{{ sync_invert_direction }}"
+        sequence:
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    rev_switch: >-
+                      {% if reverse_direction_switch is string and reverse_direction_switch | length > 0 %}
+                        {{ reverse_direction_switch }}
+                      {% elif reverse_direction_switch is iterable and reverse_direction_switch | count > 0 %}
+                        {{ reverse_direction_switch | first }}
+                      {% else %}
+                        {% set dev = device_id(repeat.item) %}
+                        {{ (device_entities(dev) | select('match', '^switch\\..*reverse_direction') | first | default('')) if dev else '' }}
+                      {% endif %}
+                - if:
+                    - condition: template
+                      value_template: "{{ rev_switch != '' }}"
+                  then:
+                    - action: "switch.turn_{{ 'on' if invert_direction_state else 'off' }}"
+                      target:
+                        entity_id: "{{ rev_switch }}"
+
+      # 11. Low-Battery Alert
+      - conditions:
+          - condition: trigger
+            id: low_battery
+          - condition: template
+            value_template: "{{ enable_low_battery_alert and (notify_service | trim | length > 0) }}"
+        sequence:
+          - action: "{{ notify_service | trim }}"
+            continue_on_error: true
+            data:
+              title: "🔋 Blind / Curtain Battery Low"
+              message: >-
+                One or more calibrated covers ({{ covers | map('state_attr', 'friendly_name') | select('string') | join(', ') }})
+                dropped at or below {{ low_battery_threshold }}% battery.

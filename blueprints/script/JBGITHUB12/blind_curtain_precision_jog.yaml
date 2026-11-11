@@ -1,0 +1,279 @@
+blueprint:
+  name: "🎛️ Blind & Curtain Precision Jog, Limit Drive & Snap Controller"
+  author: JBGITHUB12
+  domain: script
+  homeassistant:
+    min_version: "2024.10.0"
+  source_url: https://github.com/JBGITHUB12/ha-blinds-calibration-studio/blob/main/blueprints/script/JBGITHUB12/blind_curtain_precision_jog.yaml
+  description: >
+    ### 🎛️ Reusable Calibration & Precision Jog Script Blueprint
+
+    Creates a multi-command calibration controller script for one or more blinds or curtains.
+    Call this script from any Lovelace button, tile card, physical Zigbee remote, or voice routine
+    with a selectable `command`:
+
+    - `open_to_limit` — Drive to calibrated Start (Open) Limit
+
+    - `close_to_limit` — Drive to calibrated Stop (Close) Limit
+
+    - `midpoint` — Drive to exact midpoint between Start & Stop Limits
+
+    - `jog_up_5` / `jog_up_1` / `jog_down_1` / `jog_down_5` — Precision `+5%`, `+1%`, `-1%`, `-5%` motor nudge
+
+    - `stop` — Immediate motor stop
+
+    - `snap_start_limit` / `snap_stop_limit` — Save live cover position into your Start/Stop `input_number` helper
+
+    - `toggle_reverse_direction` — Toggle motor polarity switch
+
+    - `z2m_hardware_reset` — Publish Zigbee2MQTT `limits_calibration: reset`
+
+  input:
+    target_cover:
+      name: "🪟 Target Blind(s) or Curtain(s)"
+      description: "Cover entity or entities controlled by this script."
+      selector:
+        entity:
+          filter:
+            - domain: cover
+          multiple: true
+    start_limit_static:
+      name: "🟢 Default Start Limit — Open (%)"
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    start_limit_helper:
+      name: "🟢 Start Limit Helper (Optional)"
+      description: "Optional `input_number` / `number` helper overriding Default Start Limit."
+      default: []
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_number
+                - number
+          multiple: false
+    stop_limit_static:
+      name: "🔴 Default Stop Limit — Close (%)"
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+          mode: slider
+    stop_limit_helper:
+      name: "🔴 Stop Limit Helper (Optional)"
+      description: "Optional `input_number` / `number` helper overriding Default Stop Limit."
+      default: []
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_number
+                - number
+          multiple: false
+    z2m_base_topic:
+      name: "📡 Zigbee2MQTT Base Topic (Optional)"
+      default: "zigbee2mqtt"
+      selector:
+        text: {}
+
+mode: restart
+fields:
+  command:
+    name: "Calibration / Motion Command"
+    description: "Select the operation to perform on the configured blind/curtain."
+    required: true
+    default: "open_to_limit"
+    selector:
+      select:
+        options:
+          - label: "⬆️ Drive to Start (Open) Limit"
+            value: "open_to_limit"
+          - label: "↕️ Drive to Calibrated Midpoint"
+            value: "midpoint"
+          - label: "⬇️ Drive to Stop (Close) Limit"
+            value: "close_to_limit"
+          - label: "⏫ Step Up (+5%)"
+            value: "jog_up_5"
+          - label: "🔼 Nudge Up (+1%)"
+            value: "jog_up_1"
+          - label: "🛑 Emergency Stop"
+            value: "stop"
+          - label: "🔽 Nudge Down (-1%)"
+            value: "jog_down_1"
+          - label: "⏬ Step Down (-5%)"
+            value: "jog_down_5"
+          - label: "📌 Snap Current Position as Start (Open) Limit"
+            value: "snap_start_limit"
+          - label: "📌 Snap Current Position as Stop (Close) Limit"
+            value: "snap_stop_limit"
+          - label: "🔄 Toggle Motor Reverse Direction"
+            value: "toggle_reverse_direction"
+          - label: "🔧 Zigbee2MQTT Hardware Calibration Reset"
+            value: "z2m_hardware_reset"
+
+variables:
+  raw_target_cover: !input target_cover
+  covers: "{{ [raw_target_cover] if raw_target_cover is string else raw_target_cover }}"
+  primary_cover: "{{ covers | first }}"
+  start_limit_static: !input start_limit_static
+  start_limit_helper: !input start_limit_helper
+  stop_limit_static: !input stop_limit_static
+  stop_limit_helper: !input stop_limit_helper
+  z2m_base_topic: !input z2m_base_topic
+  selected_cmd: "{{ command | default('open_to_limit') }}"
+
+  start_helper_id: >-
+    {% if start_limit_helper is string and start_limit_helper | length > 0 %}
+      {{ start_limit_helper }}
+    {% elif start_limit_helper is iterable and start_limit_helper | count > 0 %}
+      {{ start_limit_helper | first }}
+    {% else %}
+      {{ '' }}
+    {% endif %}
+
+  stop_helper_id: >-
+    {% if stop_limit_helper is string and stop_limit_helper | length > 0 %}
+      {{ stop_limit_helper }}
+    {% elif stop_limit_helper is iterable and stop_limit_helper | count > 0 %}
+      {{ stop_limit_helper | first }}
+    {% else %}
+      {{ '' }}
+    {% endif %}
+
+  effective_start_limit: >-
+    {% if start_helper_id != '' and states(start_helper_id) | is_number %}
+      {{ states(start_helper_id) | float(start_limit_static) | round(0) | int }}
+    {% else %}
+      {{ start_limit_static | int }}
+    {% endif %}
+
+  effective_stop_limit: >-
+    {% if stop_helper_id != '' and states(stop_helper_id) | is_number %}
+      {{ states(stop_helper_id) | float(stop_limit_static) | round(0) | int }}
+    {% else %}
+      {{ stop_limit_static | int }}
+    {% endif %}
+
+  midpoint_position: "{{ ((effective_start_limit | float + effective_stop_limit | float) / 2) | round(0) | int }}"
+
+sequence:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'open_to_limit' }}"
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_start_limit | int }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'midpoint' }}"
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ midpoint_position | int }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'close_to_limit' }}"
+        sequence:
+          - action: cover.set_cover_position
+            target:
+              entity_id: "{{ covers }}"
+            data:
+              position: "{{ effective_stop_limit | int }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'stop' }}"
+        sequence:
+          - action: cover.stop_cover
+            target:
+              entity_id: "{{ covers }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd in ['jog_up_5', 'jog_up_1', 'jog_down_1', 'jog_down_5'] }}"
+        sequence:
+          - variables:
+              delta: >-
+                {% if selected_cmd == 'jog_up_5' %}5
+                {% elif selected_cmd == 'jog_up_1' %}1
+                {% elif selected_cmd == 'jog_down_1' %}-1
+                {% else %}-5{% endif %}
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    cur: "{{ state_attr(repeat.item, 'current_position') | default(50, true) | int }}"
+                    nxt: "{{ [0, [100, cur + (delta | int)] | min] | max }}"
+                - action: cover.set_cover_position
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    position: "{{ nxt }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'snap_start_limit' and start_helper_id != '' }}"
+        sequence:
+          - action: "{{ start_helper_id.split('.')[0] }}.set_value"
+            target:
+              entity_id: "{{ start_helper_id }}"
+            data:
+              value: "{{ state_attr(primary_cover, 'current_position') | default(100, true) | int }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'snap_stop_limit' and stop_helper_id != '' }}"
+        sequence:
+          - action: "{{ stop_helper_id.split('.')[0] }}.set_value"
+            target:
+              entity_id: "{{ stop_helper_id }}"
+            data:
+              value: "{{ state_attr(primary_cover, 'current_position') | default(0, true) | int }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'toggle_reverse_direction' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - variables:
+                    dev: "{{ device_id(repeat.item) }}"
+                    rev_sw: "{{ (device_entities(dev) | select('match', '^switch\\..*reverse_direction') | first | default('')) if dev else '' }}"
+                - if:
+                    - condition: template
+                      value_template: "{{ rev_sw != '' }}"
+                  then:
+                    - action: switch.toggle
+                      target:
+                        entity_id: "{{ rev_sw }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ selected_cmd == 'z2m_hardware_reset' }}"
+        sequence:
+          - repeat:
+              for_each: "{{ covers }}"
+              sequence:
+                - action: mqtt.publish
+                  continue_on_error: true
+                  data:
+                    topic: "{{ z2m_base_topic }}/{{ repeat.item.split('.')[1] }}/set"
+                    payload: '{"limits_calibration": "reset"}'

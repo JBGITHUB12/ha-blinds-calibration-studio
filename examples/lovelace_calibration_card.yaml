@@ -1,0 +1,91 @@
+# ==============================================================================
+# Native Lovelace Calibration & Precision Jog Card Snippet
+# Works with the 'Blind & Curtain Precision Jog, Limit Drive & Snap Controller'
+# Script Blueprint (script.living_room_blind_calibrator)
+# ==============================================================================
+
+type: vertical-stack
+cards:
+  - type: tile
+    entity: cover.living_room_blind
+    name: Living Room Blind
+    features:
+      - type: cover-open-close
+      - type: cover-position
+
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: "+5%"
+        icon: mdi:chevron-double-up
+        tap_action:
+          action: perform-action
+          perform_action: script.living_room_blind_calibrator
+          data:
+            command: jog_up_5
+      - type: button
+        name: "+1%"
+        icon: mdi:chevron-up
+        tap_action:
+          action: perform-action
+          perform_action: script.living_room_blind_calibrator
+          data:
+            command: jog_up_1
+      - type: button
+        name: "STOP"
+        icon: mdi:stop-circle-outline
+        tap_action:
+          action: perform-action
+          perform_action: script.living_room_blind_calibrator
+          data:
+            command: stop
+      - type: button
+        name: "-1%"
+        icon: mdi:chevron-down
+        tap_action:
+          action: perform-action
+          perform_action: script.living_room_blind_calibrator
+          data:
+            command: jog_down_1
+      - type: button
+        name: "-5%"
+        icon: mdi:chevron-double-down
+        tap_action:
+          action: perform-action
+          perform_action: script.living_room_blind_calibrator
+          data:
+            command: jog_down_5
+
+  - type: entities
+    title: Soft-Limit Calibration
+    entities:
+      - entity: input_number.living_room_blind_start_limit
+        name: Start Position (Open Limit)
+      - entity: input_number.living_room_blind_stop_limit
+        name: Stop Position (Close Limit)
+      - type: buttons
+        entities:
+          - entity: script.living_room_blind_calibrator
+            name: Snap Open
+            icon: mdi:pin
+            tap_action:
+              action: perform-action
+              perform_action: script.living_room_blind_calibrator
+              data:
+                command: snap_start_limit
+          - entity: script.living_room_blind_calibrator
+            name: Midpoint
+            icon: mdi:arrow-up-down
+            tap_action:
+              action: perform-action
+              perform_action: script.living_room_blind_calibrator
+              data:
+                command: midpoint
+          - entity: script.living_room_blind_calibrator
+            name: Snap Close
+            icon: mdi:pin-outline
+            tap_action:
+              action: perform-action
+              perform_action: script.living_room_blind_calibrator
+              data:
+                command: snap_stop_limit

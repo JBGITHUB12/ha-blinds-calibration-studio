@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blind &amp; Curtain Calibration Studio &bull; Home Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(18, 24, 38, 0.82);
+      --card-border: rgba(212, 175, 55, 0.22);
+      --card-hover: rgba(212, 175, 55, 0.38);
+      --gold: #d4af37;
+      --gold-light: #f3e5ab;
+      --gold-glow: rgba(212, 175, 55, 0.25);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(at 0% 0%, rgba(212, 175, 55, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.06) 0px, transparent 50%);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(56, 189, 248, 0.15));
+      border: 1px solid var(--gold);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold);
+      font-size: 20px;
+      box-shadow: 0 0 20px var(--gold-glow);
+    }
+
+    .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--gold-light);
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.4px;
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--success);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.22);
+      transform: translateY(-1px);
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.22), rgba(212, 175, 55, 0.1));
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+    }
+    .btn-gold:hover {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.32), rgba(212, 175, 55, 0.2));
+      box-shadow: 0 0 16px var(--gold-glow);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+    .btn-success {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: var(--success);
+      color: #86efac;
+    }
+    .btn-success:hover { background: rgba(34, 197, 94, 0.25); }
+    .btn-accent {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: rgba(56, 189, 248, 0.45);
+      color: #bae6fd;
+    }
+    .btn-accent:hover { background: rgba(56, 189, 248, 0.24); }
+
+    .master-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 13px 18px;
+      backdrop-filter: blur(12px);
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .room-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .tab-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 13px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-pill:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .tab-pill.active {
+      background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(56, 189, 248, 0.15));
+      border-color: var(--gold);
+      color: var(--gold-light);
+      font-weight: 600;
+    }
+
+    .master-actions {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    .blinds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(365px, 1fr));
+      gap: 20px;
+    }
+
+    .empty-banner {
+      grid-column: 1 / -1;
+      background: var(--card-bg);
+      border: 1px dashed var(--card-border);
+      border-radius: 16px;
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .blind-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+    .blind-card:hover {
+      border-color: var(--card-hover);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(212, 175, 55, 0.14);
+      transform: translateY(-2px);
+    }
+    .blind-card.unavailable-card {
+      opacity: 0.58;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .blind-title {
+      font-size: 15.5px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .blind-room {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .helper-synced-tag {
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .telemetry-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .tele-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tele-pill.battery-good { color: #86efac; border-color: rgba(34, 197, 94, 0.3); }
+    .tele-pill.battery-mid { color: #fde047; border-color: rgba(234, 179, 8, 0.3); }
+    .tele-pill.battery-low { color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+    .tele-pill.state-moving { color: var(--accent); border-color: rgba(56, 189, 248, 0.35); animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    .window-stage {
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .window-frame-container {
+      width: 136px;
+      height: 216px;
+      position: relative;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      border: 6px solid #334155;
+      border-top-width: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8), 0 4px 12px rgba(0,0,0,0.5);
+      flex-shrink: 0;
+    }
+
+    .window-glass {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 60%, #86efac 100%);
+      opacity: 0.85;
+    }
+    .window-glass::after {
+      content: '';
+      position: absolute;
+      width: 2px;
+      height: 100%;
+      background: rgba(51, 65, 85, 0.6);
+      left: 50%;
+    }
+
+    .roller-casing {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 14px;
+      background: linear-gradient(180deg, #64748b, #475569);
+      border-bottom: 2px solid #1e293b;
+      z-index: 5;
+    }
+
+    .blind-fabric {
+      position: absolute;
+      top: 14px;
+      left: 0;
+      right: 0;
+      height: 0%;
+      background: repeating-linear-gradient(
+        0deg,
+        #f1f5f9,
+        #f1f5f9 4px,
+        #e2e8f0 4px,
+        #e2e8f0 8px
+      );
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      transition: height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+      z-index: 3;
+      border-bottom: 5px solid #94a3b8;
+    }
+    .blind-fabric::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 14px;
+      height: 6px;
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    .limit-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      z-index: 4;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 4px;
+    }
+    .limit-line::before {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      border-top: 2px dashed currentColor;
+    }
+    .limit-tag {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #000;
+      background: currentColor;
+      position: relative;
+      z-index: 5;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .limit-start { color: #22c55e; top: 10%; }
+    .limit-stop { color: #ef4444; top: 90%; }
+    .pos-indicator-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      border-top: 1px solid #38bdf8;
+      box-shadow: 0 0 6px #38bdf8;
+      z-index: 4;
+      transition: top 0.35s ease;
+    }
+
+    .stage-controls {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 11px;
+    }
+
+    .pos-display-block {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .current-pos-num {
+      font-family: 'Cinzel', serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--gold-light);
+      line-height: 1;
+    }
+    .pos-unit {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    .jog-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+    .jog-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 3px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.15s;
+    }
+    .jog-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .jog-btn.stop {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+    .jog-btn.stop:hover { background: rgba(239, 68, 68, 0.35); }
+
+    .range-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .range-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+    .pos-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #1e293b;
+      outline: none;
+      border: 1px solid var(--border);
+    }
+    .pos-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--gold);
+      cursor: pointer;
+      box-shadow: 0 0 10px var(--gold-glow);
+      border: 2px solid #000;
+    }
+
+    .test-actions-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 7px;
+    }
+    .test-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 5px;
+      border-radius: 8px;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.2s;
+    }
+    .test-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .test-btn.open:hover { color: var(--success); border-color: rgba(34, 197, 94, 0.4); }
+    .test-btn.close:hover { color: var(--danger); border-color: rgba(239, 68, 68, 0.4); }
+    .test-btn.mid:hover { color: var(--accent); border-color: rgba(56, 189, 248, 0.4); }
+
+    .limits-panel {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .limit-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .limit-title {
+      font-size: 11.5px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .limit-title.start { color: var(--success); }
+    .limit-title.stop { color: var(--danger); }
+
+    .limit-controls-pair {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .limit-input {
+      width: 56px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 4px 7px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .limit-input:focus { outline: none; border-color: var(--gold); }
+
+    .set-limit-btn {
+      padding: 5px 9px;
+      font-size: 11px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .set-limit-btn.save-start:hover {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: var(--success);
+      color: #86efac;
+    }
+    .set-limit-btn.save-stop:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    .card-footer-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 11px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .reverse-toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .reverse-toggle-label input {
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid var(--gold);
+      border-radius: 16px;
+      max-width: 840px;
+      width: 100%;
+      max-height: 86vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px var(--gold-glow);
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-body {
+      padding: 22px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .yaml-code {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 50vh;
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12.5px;
+    }
+    .form-field input {
+      background: #020617;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-sliders"></i>
+      </div>
+      <div>
+        <div class="brand-title">Blind &amp; Curtain Calibration Studio</div>
+        <div class="brand-subtitle">Visual Soft-Limit Calibration &bull; Start &amp; Stop Positioning Console for Home Assistant</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div id="haStatusBadge" class="status-badge offline">
+        <span class="status-dot"></span>
+        <span id="haStatusText">Connecting to Home Assistant...</span>
+      </div>
+
+      <button class="btn btn-accent" onclick="provisionHaHelpers()" title="Automatically create input_number.<cover>_start_limit and _stop_limit helpers in Home Assistant">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Sync HA Helpers
+      </button>
+      <button class="btn btn-gold" onclick="exportHaYamlModal()">
+        <i class="fa-solid fa-code"></i> Export Blueprint YAML
+      </button>
+      <button class="btn" onclick="toggleShowUnavailable()" id="btnShowUnavail">
+        <i class="fa-solid fa-eye-slash"></i> Hide Offline
+      </button>
+      <button class="btn" onclick="openConnectionModal()" title="Configure standalone Home Assistant URL & Long-Lived Access Token">
+        <i class="fa-solid fa-plug"></i> Connection
+      </button>
+    </div>
+  </header>
+
+  <div class="master-bar">
+    <div class="room-tabs" id="roomTabs">
+      <div class="tab-pill active">Discovering covers...</div>
+    </div>
+
+    <div class="master-actions">
+      <button class="btn btn-success" onclick="masterDriveAll('open')">
+        <i class="fa-solid fa-arrow-up"></i> Open Shown to Limits
+      </button>
+      <button class="btn btn-danger" onclick="masterDriveAll('stop')">
+        <i class="fa-solid fa-hand"></i> Stop All
+      </button>
+      <button class="btn btn-gold" onclick="masterDriveAll('close')">
+        <i class="fa-solid fa-arrow-down"></i> Close Shown to Limits
+      </button>
+    </div>
+  </div>
+
+  <main class="blinds-grid" id="blindsGrid"></main>
+
+  <!-- Blueprint & Package YAML Export Modal -->
+  <div class="modal-overlay" id="yamlModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="font-family: 'Cinzel', serif; font-size: 17px; color: var(--gold-light); font-weight: 700;">
+          Home Assistant Blueprint &amp; Template Configuration
+        </div>
+        <button class="btn" onclick="closeYamlModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-gold" onclick="renderExportMode('blueprint')">Automation Blueprint Instances</button>
+          <button class="btn" onclick="renderExportMode('template')">Template Cover Blueprint Instances</button>
+          <button class="btn" onclick="renderExportMode('package')">Standalone YAML Package</button>
+        </div>
+        <p style="font-size: 12.5px; color: var(--muted);" id="yamlModalDesc">
+          Ready-to-use Home Assistant configuration generated dynamically from your discovered covers and calibrated limits:
+        </p>
+        <div class="yaml-code" id="yamlOutput">Generating...</div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button class="btn btn-gold" onclick="copyYamlCode()">
+            <i class="fa-solid fa-copy"></i> Copy YAML
+          </button>
+          <button class="btn" onclick="closeYamlModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standalone Connection Settings Modal -->
+  <div class="modal-overlay" id="connModal">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="font-family: 'Cinzel', serif; font-size: 17px; color: var(--gold-light); font-weight: 700;">
+          Home Assistant Connection
+        </div>
+        <button class="btn" onclick="closeConnectionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12.5px; color: var(--muted); line-height: 1.5;">
+          When hosted inside Home Assistant (<code>/local/blinds_calibration_studio.html</code>), authentication is automatic via your active Home Assistant session. Only fill in these fields if opening this studio externally:
+        </p>
+        <div class="form-field">
+          <label>Home Assistant Base URL</label>
+          <input type="text" id="inpHaUrl" placeholder="http://homeassistant.local:8123">
+        </div>
+        <div class="form-field">
+          <label>Long-Lived Access Token (Stored locally in this browser only)</label>
+          <input type="password" id="inpHaToken" placeholder="Paste Long-Lived Access Token...">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+          <button class="btn" onclick="clearSavedConnection()">Clear Saved Token</button>
+          <button class="btn btn-gold" onclick="saveConnectionSettings()">Save &amp; Reconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_LIMITS_KEY = 'ha_blinds_studio_limits_v1';
+    const STORAGE_CONN_KEY = 'ha_blinds_studio_conn_v1';
+
+    let blindDevices = [];     // Dynamically discovered [{ id, slug, name, room, type }]
+    let blindStates = {};      // Live state telemetry keyed by cover entity_id
+    let blindLimits = {};      // { start_limit, stop_limit, has_ha_start, has_ha_stop }
+    let areaLookup = {};       // entity_id -> Area Name
+    let currentFilter = 'all';
+    let hideUnavailable = true;
+    let currentExportMode = 'blueprint';
+
+    // Resolve live Home Assistant frontend hass object if running inside HA iframe/panel
+    function getParentHass() {
+      try {
+        if (window.parent && window.parent !== window) {
+          const haEl = window.parent.document.querySelector('home-assistant');
+          if (haEl && haEl.hass) return haEl.hass;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // Resolve REST URL + Bearer token (from active HA session hassTokens or manual config)
+    function getHaAuth() {
+      const parentHass = getParentHass();
+      if (parentHass && parentHass.auth && parentHass.auth.data && parentHass.auth.data.access_token) {
+        return {
+          baseUrl: window.location.origin,
+          token: parentHass.auth.data.access_token,
+          mode: 'panel'
+        };
+      }
+
+      try {
+        const rawTokens = localStorage.getItem('hassTokens') || (window.parent && window.parent.localStorage && window.parent.localStorage.getItem('hassTokens'));
+        if (rawTokens) {
+          const parsed = JSON.parse(rawTokens);
+          if (parsed && parsed.access_token) {
+            return {
+              baseUrl: (parsed.hassUrl || window.location.origin).replace(/\/$/, ''),
+              token: parsed.access_token,
+              mode: 'session'
+            };
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_CONN_KEY) || '{}');
+        if (saved.token) {
+          return {
+            baseUrl: (saved.baseUrl || window.location.origin).replace(/\/$/, ''),
+            token: saved.token,
+            mode: 'token'
+          };
+        }
+      } catch (e) {}
+
+      return null;
+    }
+
+    async function haFetch(path, method = 'GET', bodyObj = null) {
+      const auth = getHaAuth();
+      if (!auth) throw new Error('No Home Assistant authentication available');
+      const opts = {
+        method,
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json'
+        }
+      };
+      if (bodyObj !== null) opts.body = JSON.stringify(bodyObj);
+      const res = await fetch(`${auth.baseUrl}${path}`, opts);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function haCallService(domain, service, data) {
+      const parentHass = getParentHass();
+      if (parentHass && typeof parentHass.callService === 'function') {
+        return parentHass.callService(domain, service, data);
+      }
+      return haFetch(`/api/services/${domain}/${service}`, 'POST', data);
+    }
+
+    async function haCallWS(msg) {
+      const parentHass = getParentHass();
+      if (parentHass && typeof parentHass.callWS === 'function') {
+        return parentHass.callWS(msg);
+      }
+      const auth = getHaAuth();
+      if (!auth) throw new Error('Not authenticated');
+      const wsUrl = auth.baseUrl.replace(/^http/, 'ws') + '/api/websocket';
+      return new Promise((resolve, reject) => {
+        const ws = new WebSocket(wsUrl);
+        const reqId = Math.floor(Math.random() * 100000) + 10;
+        ws.onmessage = (ev) => {
+          const data = JSON.parse(ev.data);
+          if (data.type === 'auth_required') {
+            ws.send(JSON.stringify({ type: 'auth', access_token: auth.token }));
+          } else if (data.type === 'auth_ok') {
+            ws.send(JSON.stringify({ ...msg, id: reqId }));
+          } else if (data.type === 'auth_invalid') {
+            ws.close();
+            reject(new Error('Invalid token'));
+          } else if (data.id === reqId) {
+            ws.close();
+            if (data.success) resolve(data.result);
+            else reject(new Error(data.error ? data.error.message : 'WS error'));
+          }
+        };
+        ws.onerror = (err) => reject(err);
+      });
+    }
+
+    function loadLocalLimits() {
+      try {
+        const raw = localStorage.getItem(STORAGE_LIMITS_KEY);
+        if (raw) blindLimits = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    function persistLocalLimits() {
+      try {
+        localStorage.setItem(STORAGE_LIMITS_KEY, JSON.stringify(blindLimits));
+      } catch (e) {}
+    }
+
+    async function loadAreaRegistry() {
+      const parentHass = getParentHass();
+      if (parentHass && parentHass.entities && parentHass.areas) {
+        Object.values(parentHass.entities).forEach(ent => {
+          if (!ent.entity_id || !ent.entity_id.startsWith('cover.')) return;
+          let areaId = ent.area_id;
+          if (!areaId && ent.device_id && parentHass.devices && parentHass.devices[ent.device_id]) {
+            areaId = parentHass.devices[ent.device_id].area_id;
+          }
+          if (areaId && parentHass.areas[areaId]) {
+            areaLookup[ent.entity_id] = parentHass.areas[areaId].name;
+          }
+        });
+        return;
+      }
+
+      try {
+        const [areas, devices, entities] = await Promise.all([
+          haCallWS({ type: 'config/area_registry/list' }),
+          haCallWS({ type: 'config/device_registry/list' }),
+          haCallWS({ type: 'config/entity_registry/list' })
+        ]);
+        const areaMap = {};
+        (areas || []).forEach(a => { areaMap[a.area_id] = a.name; });
+        const devAreaMap = {};
+        (devices || []).forEach(d => { if (d.area_id) devAreaMap[d.id] = d.area_id; });
+        (entities || []).forEach(e => {
+          if (!e.entity_id || !e.entity_id.startsWith('cover.')) return;
+          const aId = e.area_id || (e.device_id ? devAreaMap[e.device_id] : null);
+          if (aId && areaMap[aId]) areaLookup[e.entity_id] = areaMap[aId];
+        });
+      } catch (e) {
+        // Fallback silently to friendly_name room inference
+      }
+    }
+
+    function inferRoomFromName(friendlyName) {
+      const match = friendlyName.match(/^(.+?)\s+(?:Big\s+|Small\s+|Left\s+|Right\s+)?(?:Blind|Blinds|Curtain|Curtains|Shade|Shutter|Roller|Cover)/i);
+      if (match && match[1] && match[1].length < 28) return match[1].trim();
+      return 'General';
+    }
+
+    async function fetchStatesMap() {
+      const parentHass = getParentHass();
+      if (parentHass && parentHass.states) {
+        return parentHass.states;
+      }
+      const statesArr = await haFetch('/api/states');
+      const map = {};
+      statesArr.forEach(s => { map[s.entity_id] = s; });
+      return map;
+    }
+
+    async function refreshAllStates(initialDiscovery = false) {
+      try {
+        const stateMap = await fetchStatesMap();
+
+        const discovered = [];
+        Object.keys(stateMap).sort().forEach(entityId => {
+          if (!entityId.startsWith('cover.')) return;
+          if (entityId.endsWith('_calibrated')) return; // Skip wrapper duplicates by default
+          const stObj = stateMap[entityId];
+          const attrs = stObj.attributes || {};
+          const devClass = (attrs.device_class || '').toLowerCase();
+          if (['garage', 'gate', 'door', 'damper'].includes(devClass)) return;
+
+          const slug = entityId.slice('cover.'.length);
+          const friendly = attrs.friendly_name || slug.replace(/_/g, ' ');
+          const room = areaLookup[entityId] || inferRoomFromName(friendly);
+          const isCurtain = devClass === 'curtain' || /curtain|drape/i.test(friendly);
+
+          discovered.push({
+            id: entityId,
+            slug,
+            name: friendly,
+            room,
+            type: isCurtain ? 'curtain' : 'roller'
+          });
+
+          const batt = stateMap[`sensor.${slug}_battery`];
+          const temp = stateMap[`sensor.${slug}_device_temperature`] || stateMap[`sensor.${slug}_temperature`];
+          const motor = stateMap[`sensor.${slug}_motor_state`];
+          const running = stateMap[`binary_sensor.${slug}_running`];
+          const reverse = stateMap[`switch.${slug}_reverse_direction`];
+
+          blindStates[entityId] = {
+            state: stObj.state,
+            available: !['unavailable', 'unknown'].includes(stObj.state),
+            position: attrs.current_position !== undefined ? Number(attrs.current_position) : (stObj.state === 'open' ? 100 : 0),
+            battery: batt && !isNaN(Number(batt.state)) ? Math.round(Number(batt.state)) : null,
+            temperature: temp && !isNaN(Number(temp.state)) ? Number(temp.state) : null,
+            motor_state: motor && !['unknown', 'unavailable'].includes(motor.state)
+              ? motor.state
+              : (running && running.state === 'on' ? 'moving' : (['opening', 'closing'].includes(stObj.state) ? stObj.state : 'stopped')),
+            has_reverse_switch: Boolean(reverse),
+            is_reversed: reverse ? (reverse.state === 'on') : false
+          };
+
+          // Sync with Home Assistant input_number helpers when present
+          const haStart = stateMap[`input_number.${slug}_start_limit`] || stateMap[`number.${slug}_start_limit`];
+          const haStop = stateMap[`input_number.${slug}_stop_limit`] || stateMap[`number.${slug}_stop_limit`];
+
+          if (!blindLimits[entityId]) {
+            blindLimits[entityId] = { start_limit: 100, stop_limit: 0 };
+          }
+          if (haStart && !isNaN(Number(haStart.state))) {
+            blindLimits[entityId].start_limit = Math.round(Number(haStart.state));
+            blindLimits[entityId].start_helper = haStart.entity_id;
+          }
+          if (haStop && !isNaN(Number(haStop.state))) {
+            blindLimits[entityId].stop_limit = Math.round(Number(haStop.state));
+            blindLimits[entityId].stop_helper = haStop.entity_id;
+          }
+        });
+
+        const structureChanged = initialDiscovery || discovered.length !== blindDevices.length;
+        blindDevices = discovered;
+
+        const badge = document.getElementById('haStatusBadge');
+        badge.className = 'status-badge';
+        document.getElementById('haStatusText').innerText = `Live HA Connected (${blindDevices.length} Covers)`;
+
+        if (structureChanged) {
+          renderRoomTabs();
+          renderGrid();
+        } else {
+          updateVisuals();
+        }
+      } catch (e) {
+        const badge = document.getElementById('haStatusBadge');
+        badge.className = 'status-badge offline';
+        document.getElementById('haStatusText').innerText = 'HA Auth Needed — Click Connection';
+      }
+    }
+
+    function getVisibleDevices() {
+      return blindDevices.filter(d => {
+        const st = blindStates[d.id];
+        if (hideUnavailable && st && !st.available) return false;
+        if (currentFilter !== 'all' && d.room !== currentFilter) return false;
+        return true;
+      });
+    }
+
+    function renderRoomTabs() {
+      const tabsEl = document.getElementById('roomTabs');
+      tabsEl.innerHTML = '';
+
+      const availDevices = blindDevices.filter(d => !hideUnavailable || (blindStates[d.id] && blindStates[d.id].available));
+      const roomCounts = {};
+      availDevices.forEach(d => {
+        roomCounts[d.room] = (roomCounts[d.room] || 0) + 1;
+      });
+
+      const allPill = document.createElement('div');
+      allPill.className = `tab-pill ${currentFilter === 'all' ? 'active' : ''}`;
+      allPill.innerText = `All Blinds & Curtains (${availDevices.length})`;
+      allPill.onclick = () => { currentFilter = 'all'; renderRoomTabs(); renderGrid(); };
+      tabsEl.appendChild(allPill);
+
+      Object.keys(roomCounts).sort().forEach(room => {
+        const pill = document.createElement('div');
+        pill.className = `tab-pill ${currentFilter === room ? 'active' : ''}`;
+        pill.innerText = `${room} (${roomCounts[room]})`;
+        pill.onclick = () => { currentFilter = room; renderRoomTabs(); renderGrid(); };
+        tabsEl.appendChild(pill);
+      });
+    }
+
+    function renderGrid() {
+      const container = document.getElementById('blindsGrid');
+      container.innerHTML = '';
+
+      const visible = getVisibleDevices();
+      if (visible.length === 0) {
+        container.innerHTML = `
+          <div class="empty-banner">
+            <i class="fa-solid fa-blinds" style="font-size: 32px; color: var(--gold);"></i>
+            <div style="font-size: 16px; color: var(--text); font-weight: 600;">No Active Blinds or Curtains Found in Current Filter</div>
+            <div style="max-width: 520px; font-size: 13px; line-height: 1.5;">
+              Ensure Home Assistant is connected or toggle <strong>Show Offline</strong> if devices are asleep.
+            </div>
+          </div>`;
+        return;
+      }
+
+      visible.forEach(d => {
+        const idSafe = d.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        const limits = blindLimits[d.id] || { start_limit: 100, stop_limit: 0 };
+        const st = blindStates[d.id] || { position: 0, available: true, motor_state: 'stopped' };
+        const hasSyncedHelpers = Boolean(limits.start_helper && limits.stop_helper);
+
+        const card = document.createElement('div');
+        card.className = `blind-card ${st.available ? '' : 'unavailable-card'}`;
+        card.id = `card_${idSafe}`;
+
+        const battHtml = st.battery !== null
+          ? `<span class="tele-pill ${getBatteryClass(st.battery)}" title="Battery"><i class="fa-solid fa-battery-half"></i> ${st.battery}%</span>`
+          : '';
+        const tempHtml = st.temperature !== null
+          ? `<span class="tele-pill" title="Motor Temperature"><i class="fa-solid fa-temperature-half"></i> ${st.temperature}&deg;C</span>`
+          : '';
+
+        card.innerHTML = `
+          <div class="card-header">
+            <div>
+              <div class="blind-title">
+                <i class="fa-solid ${d.type === 'curtain' ? 'fa-person-booth' : 'fa-blinds'}"></i>
+                <span>${escapeHtml(d.name)}</span>
+              </div>
+              <div class="blind-room">
+                <span>${escapeHtml(d.room)} &bull; ${d.type.toUpperCase()}</span>
+                ${hasSyncedHelpers ? '<span class="helper-synced-tag" title="Synced directly with Home Assistant input_number helpers">HA Helper Synced</span>' : ''}
+              </div>
+            </div>
+            <div class="telemetry-pills">
+              ${battHtml}
+              ${tempHtml}
+              <span class="tele-pill ${st.motor_state !== 'stopped' ? 'state-moving' : ''}" id="motor_${idSafe}">
+                <i class="fa-solid fa-rotate"></i> ${escapeHtml(String(st.motor_state))}
+              </span>
+            </div>
+          </div>
+
+          <div class="window-stage">
+            <div class="window-frame-container">
+              <div class="window-glass"></div>
+              <div class="roller-casing"></div>
+              <div class="blind-fabric" id="fabric_${idSafe}" style="height: ${100 - st.position}%"></div>
+              <div class="limit-line limit-start" id="line_start_${idSafe}" style="top: ${100 - limits.start_limit}%">
+                <span class="limit-tag">TOP ${limits.start_limit}%</span>
+              </div>
+              <div class="limit-line limit-stop" id="line_stop_${idSafe}" style="top: ${100 - limits.stop_limit}%">
+                <span class="limit-tag">BTM ${limits.stop_limit}%</span>
+              </div>
+              <div class="pos-indicator-line" id="line_pos_${idSafe}" style="top: ${100 - st.position}%"></div>
+            </div>
+
+            <div class="stage-controls">
+              <div class="pos-display-block">
+                <div>
+                  <div style="font-size: 10.5px; color: var(--muted); text-transform: uppercase;">Current Position</div>
+                  <div class="current-pos-num">
+                    <span id="posNum_${idSafe}">${st.position}</span><span class="pos-unit">%</span>
+                  </div>
+                </div>
+                <div style="font-size: 10.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace;">
+                  ${escapeHtml(d.id)}
+                </div>
+              </div>
+
+              <div class="jog-bar">
+                <button class="jog-btn" onclick="jogCover('${d.id}', 5)" title="Step Up +5%">+5%</button>
+                <button class="jog-btn" onclick="jogCover('${d.id}', 1)" title="Fine Nudge +1%">+1%</button>
+                <button class="jog-btn stop" onclick="stopCover('${d.id}')" title="Immediate Stop">STOP</button>
+                <button class="jog-btn" onclick="jogCover('${d.id}', -1)" title="Fine Nudge -1%">-1%</button>
+                <button class="jog-btn" onclick="jogCover('${d.id}', -5)" title="Step Down -5%">-5%</button>
+              </div>
+
+              <div class="range-wrap">
+                <div class="range-label-row">
+                  <span>0% (Closed)</span>
+                  <span>Drag to Drive</span>
+                  <span>100% (Open)</span>
+                </div>
+                <input type="range" class="pos-slider" id="slider_${idSafe}" min="0" max="100" value="${st.position}"
+                  onchange="setCoverPos('${d.id}', this.value)"
+                  oninput="updateFabricPreview('${d.id}', this.value)">
+              </div>
+
+              <div class="test-actions-bar">
+                <button class="test-btn open" onclick="driveToLimit('${d.id}', 'start')">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span id="btn_lbl_start_${idSafe}">To Start (${limits.start_limit}%)</span>
+                </button>
+                <button class="test-btn mid" onclick="driveToMidpoint('${d.id}')">
+                  <i class="fa-solid fa-arrows-up-down"></i>
+                  <span>Midpoint</span>
+                </button>
+                <button class="test-btn close" onclick="driveToLimit('${d.id}', 'stop')">
+                  <i class="fa-solid fa-arrow-down"></i>
+                  <span id="btn_lbl_stop_${idSafe}">To Stop (${limits.stop_limit}%)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="limits-panel">
+            <div class="limit-row">
+              <div class="limit-title start">
+                <i class="fa-solid fa-arrow-up-long"></i>
+                <span>Start Position (Open Limit):</span>
+              </div>
+              <div class="limit-controls-pair">
+                <input type="number" class="limit-input" id="inp_start_${idSafe}" min="0" max="100" value="${limits.start_limit}" onchange="updateLimitField('${d.id}', 'start', this.value)">
+                <span>%</span>
+                <button class="set-limit-btn save-start" onclick="saveCurrentAsLimit('${d.id}', 'start')">
+                  <i class="fa-solid fa-thumbtack"></i> Set Current
+                </button>
+              </div>
+            </div>
+
+            <div class="limit-row">
+              <div class="limit-title stop">
+                <i class="fa-solid fa-arrow-down-long"></i>
+                <span>Stop Position (Close Limit):</span>
+              </div>
+              <div class="limit-controls-pair">
+                <input type="number" class="limit-input" id="inp_stop_${idSafe}" min="0" max="100" value="${limits.stop_limit}" onchange="updateLimitField('${d.id}', 'stop', this.value)">
+                <span>%</span>
+                <button class="set-limit-btn save-stop" onclick="saveCurrentAsLimit('${d.id}', 'stop')">
+                  <i class="fa-solid fa-thumbtack"></i> Set Current
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer-tools">
+            <label class="reverse-toggle-label">
+              <input type="checkbox" id="rev_${idSafe}" ${st.is_reversed ? 'checked' : ''} onchange="toggleReverse('${d.id}', this.checked)">
+              <span>Invert Motor Direction</span>
+            </label>
+
+            <button class="btn" style="padding: 3px 9px; font-size: 11px;" onclick="triggerHardwareCalibrate('${d.id}')" title="Publish Zigbee2MQTT limits_calibration reset">
+              <i class="fa-solid fa-microchip"></i> Z2M Sync
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateVisuals() {
+      blindDevices.forEach(d => {
+        const idSafe = d.id.replace(/[^a-zA-Z0-9_]/g, '_');
+        const st = blindStates[d.id];
+        const limits = blindLimits[d.id];
+        if (!st || !limits) return;
+
+        const fabric = document.getElementById(`fabric_${idSafe}`);
+        const posLine = document.getElementById(`line_pos_${idSafe}`);
+        const posNum = document.getElementById(`posNum_${idSafe}`);
+        const slider = document.getElementById(`slider_${idSafe}`);
+        const motorPill = document.getElementById(`motor_${idSafe}`);
+        const inpStart = document.getElementById(`inp_start_${idSafe}`);
+        const inpStop = document.getElementById(`inp_stop_${idSafe}`);
+        const lblStart = document.getElementById(`btn_lbl_start_${idSafe}`);
+        const lblStop = document.getElementById(`btn_lbl_stop_${idSafe}`);
+
+        if (fabric) fabric.style.height = `${100 - st.position}%`;
+        if (posLine) posLine.style.top = `${100 - st.position}%`;
+        if (posNum) posNum.innerText = st.position;
+        if (slider && document.activeElement !== slider) slider.value = st.position;
+        if (inpStart && document.activeElement !== inpStart) inpStart.value = limits.start_limit;
+        if (inpStop && document.activeElement !== inpStop) inpStop.value = limits.stop_limit;
+        if (lblStart) lblStart.innerText = `To Start (${limits.start_limit}%)`;
+        if (lblStop) lblStop.innerText = `To Stop (${limits.stop_limit}%)`;
+
+        if (motorPill) {
+          motorPill.className = `tele-pill ${st.motor_state !== 'stopped' ? 'state-moving' : ''}`;
+          motorPill.innerHTML = `<i class="fa-solid fa-rotate"></i> ${escapeHtml(String(st.motor_state))}`;
+        }
+
+        const lineStart = document.getElementById(`line_start_${idSafe}`);
+        const lineStop = document.getElementById(`line_stop_${idSafe}`);
+        if (lineStart) {
+          lineStart.style.top = `${100 - limits.start_limit}%`;
+          lineStart.querySelector('.limit-tag').innerText = `TOP ${limits.start_limit}%`;
+        }
+        if (lineStop) {
+          lineStop.style.top = `${100 - limits.stop_limit}%`;
+          lineStop.querySelector('.limit-tag').innerText = `BTM ${limits.stop_limit}%`;
+        }
+      });
+    }
+
+    function updateFabricPreview(entityId, value) {
+      const idSafe = entityId.replace(/[^a-zA-Z0-9_]/g, '_');
+      const fabric = document.getElementById(`fabric_${idSafe}`);
+      const posLine = document.getElementById(`line_pos_${idSafe}`);
+      const posNum = document.getElementById(`posNum_${idSafe}`);
+      if (fabric) fabric.style.height = `${100 - value}%`;
+      if (posLine) posLine.style.top = `${100 - value}%`;
+      if (posNum) posNum.innerText = value;
+    }
+
+    async function setCoverPos(entityId, pos) {
+      pos = Math.max(0, Math.min(100, Math.round(Number(pos))));
+      try {
+        await haCallService('cover', 'set_cover_position', { entity_id: entityId, position: pos });
+        if (blindStates[entityId]) blindStates[entityId].position = pos;
+        updateVisuals();
+      } catch (e) {
+        showToast(`Failed to move ${entityId}`, true);
+      }
+    }
+
+    async function jogCover(entityId, delta) {
+      const current = blindStates[entityId] ? blindStates[entityId].position : 50;
+      await setCoverPos(entityId, Math.max(0, Math.min(100, current + delta)));
+    }
+
+    async function stopCover(entityId) {
+      try {
+        await haCallService('cover', 'stop_cover', { entity_id: entityId });
+      } catch (e) {
+        showToast(`Failed to stop ${entityId}`, true);
+      }
+    }
+
+    async function toggleReverse(entityId, isReversed) {
+      const switchId = entityId.replace('cover.', 'switch.') + '_reverse_direction';
+      try {
+        await haCallService('switch', isReversed ? 'turn_on' : 'turn_off', { entity_id: switchId });
+        showToast(`Direction polarity updated for ${entityId}`);
+      } catch (e) {
+        showToast(`No ${switchId} switch found on this integration`, true);
+      }
+    }
+
+    async function persistLimitValue(entityId, type, val) {
+      val = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+      if (!blindLimits[entityId]) blindLimits[entityId] = { start_limit: 100, stop_limit: 0 };
+
+      if (type === 'start') blindLimits[entityId].start_limit = val;
+      else blindLimits[entityId].stop_limit = val;
+
+      persistLocalLimits();
+      updateVisuals();
+
+      const helperId = type === 'start' ? blindLimits[entityId].start_helper : blindLimits[entityId].stop_helper;
+      if (helperId) {
+        const domain = helperId.split('.')[0];
+        try {
+          await haCallService(domain, 'set_value', { entity_id: helperId, value: val });
+          showToast(`Saved ${val}% to Home Assistant (${helperId})`);
+          return;
+        } catch (e) {}
+      }
+      showToast(`Saved ${val}% locally (click "Sync HA Helpers" to persist in Home Assistant)`);
+    }
+
+    function saveCurrentAsLimit(entityId, type) {
+      const current = blindStates[entityId] ? blindStates[entityId].position : (type === 'start' ? 100 : 0);
+      persistLimitValue(entityId, type, current);
+    }
+
+    function updateLimitField(entityId, type, val) {
+      persistLimitValue(entityId, type, val);
+    }
+
+    async function driveToLimit(entityId, type) {
+      const lim = blindLimits[entityId] || { start_limit: 100, stop_limit: 0 };
+      await setCoverPos(entityId, type === 'start' ? lim.start_limit : lim.stop_limit);
+    }
+
+    async function driveToMidpoint(entityId) {
+      const lim = blindLimits[entityId] || { start_limit: 100, stop_limit: 0 };
+      await setCoverPos(entityId, Math.round((lim.start_limit + lim.stop_limit) / 2));
+    }
+
+    async function masterDriveAll(action) {
+      const targets = getVisibleDevices();
+      for (const d of targets) {
+        if (action === 'stop') stopCover(d.id);
+        else if (action === 'open') setCoverPos(d.id, (blindLimits[d.id]?.start_limit ?? 100));
+        else if (action === 'close') setCoverPos(d.id, (blindLimits[d.id]?.stop_limit ?? 0));
+      }
+      showToast(`Executed ${action.toUpperCase()} across ${targets.length} cover(s)`);
+    }
+
+    async function triggerHardwareCalibrate(entityId) {
+      const slug = entityId.replace('cover.', '');
+      if (!confirm(`Publish Zigbee2MQTT limits_calibration reset to zigbee2mqtt/${slug}/set?`)) return;
+      try {
+        await haCallService('mqtt', 'publish', {
+          topic: `zigbee2mqtt/${slug}/set`,
+          payload: JSON.stringify({ limits_calibration: 'reset' })
+        });
+        showToast(`Sent Zigbee2MQTT calibration reset to ${slug}`);
+      } catch (e) {
+        showToast('MQTT publish failed or MQTT integration not enabled.', true);
+      }
+    }
+
+    async function provisionHaHelpers() {
+      try {
+        const existing = await haCallWS({ type: 'input_number/list' });
+        const existingIds = new Set((existing || []).map(x => x.id));
+        let created = 0;
+
+        for (const d of getVisibleDevices()) {
+          const lim = blindLimits[d.id] || { start_limit: 100, stop_limit: 0 };
+          const startId = `${d.slug}_start_limit`;
+          const stopId = `${d.slug}_stop_limit`;
+
+          if (!existingIds.has(startId)) {
+            await haCallWS({
+              type: 'input_number/create',
+              name: `${d.name} Start Limit`,
+              min: 0, max: 100, step: 1,
+              initial: lim.start_limit,
+              unit_of_measurement: '%',
+              icon: 'mdi:arrow-collapse-up',
+              mode: 'box'
+            });
+            created++;
+          }
+          if (!existingIds.has(stopId)) {
+            await haCallWS({
+              type: 'input_number/create',
+              name: `${d.name} Stop Limit`,
+              min: 0, max: 100, step: 1,
+              initial: lim.stop_limit,
+              unit_of_measurement: '%',
+              icon: 'mdi:arrow-collapse-down',
+              mode: 'box'
+            });
+            created++;
+          }
+        }
+
+        await refreshAllStates(true);
+        showToast(created > 0
+          ? `Created ${created} Home Assistant input_number limit helper(s)!`
+          : 'All visible covers are already synced with Home Assistant helpers!');
+      } catch (e) {
+        showToast(`Could not auto-create helpers (${e.message})`, true);
+      }
+    }
+
+    function toggleShowUnavailable() {
+      hideUnavailable = !hideUnavailable;
+      document.getElementById('btnShowUnavail').innerHTML = hideUnavailable
+        ? '<i class="fa-solid fa-eye-slash"></i> Hide Offline'
+        : '<i class="fa-solid fa-eye"></i> Showing All';
+      renderRoomTabs();
+      renderGrid();
+    }
+
+    function exportHaYamlModal() {
+      renderExportMode(currentExportMode);
+      document.getElementById('yamlModal').classList.add('open');
+    }
+
+    function renderExportMode(mode) {
+      currentExportMode = mode;
+      const devices = getVisibleDevices();
+      let yaml = '';
+
+      if (mode === 'blueprint') {
+        yaml += `# Paste into automations.yaml (or create via Settings -> Automations -> Blueprints)\n`;
+        devices.forEach(d => {
+          const lim = blindLimits[d.id] || { start_limit: 100, stop_limit: 0 };
+          yaml += `- id: calibrate_${d.slug}\n`;
+          yaml += `  alias: "Cover Calibration Guard - ${d.name}"\n`;
+          yaml += `  use_blueprint:\n`;
+          yaml += `    path: JBGITHUB12/blind_curtain_calibration_studio.yaml\n`;
+          yaml += `    input:\n`;
+          yaml += `      target_cover:\n        - ${d.id}\n`;
+          yaml += `      start_limit_static: ${lim.start_limit}\n`;
+          if (lim.start_helper) yaml += `      start_limit_helper: ${lim.start_helper}\n`;
+          yaml += `      stop_limit_static: ${lim.stop_limit}\n`;
+          if (lim.stop_helper) yaml += `      stop_limit_helper: ${lim.stop_helper}\n`;
+          yaml += `      intercept_open_close_commands: true\n`;
+          yaml += `      enforce_overshoot_clamping: true\n\n`;
+        });
+      } else if (mode === 'template') {
+        yaml += `# Paste under 'template:' in configuration.yaml (requires calibrated_cover_wrapper.yaml blueprint)\n`;
+        yaml += `template:\n`;
+        devices.forEach(d => {
+          const lim = blindLimits[d.id] || { start_limit: 100, stop_limit: 0 };
+          yaml += `  - name: "${d.name} (Calibrated)"\n`;
+          yaml += `    unique_id: "${d.slug}_calibrated"\n`;
+          yaml += `    use_blueprint:\n`;
+          yaml += `      path: JBGITHUB12/calibrated_cover_wrapper.yaml\n`;
+          yaml += `      input:\n`;
+          yaml += `        source_cover: ${d.id}\n`;
+          yaml += `        cover_device_class: ${d.type === 'curtain' ? 'curtain' : 'shade'}\n`;
+          yaml += `        start_limit_static: ${lim.start_limit}\n`;
+          if (lim.start_helper) yaml += `        start_limit_helper: ${lim.start_helper}\n`;
+          yaml += `        stop_limit_static: ${lim.stop_limit}\n`;
+          if (lim.stop_helper) yaml += `        stop_limit_helper: ${lim.stop_helper}\n\n`;
+        });
+      } else {
+        yaml += `# Complete Standalone Home Assistant Package (packages/blinds_calibrated.yaml)\n`;
+        yaml += `input_number:\n`;
+        devices.forEach(d => {
+          const lim = blindLimits[d.id] || { start_limit: 100, stop_limit: 0 };
+          yaml += `  ${d.slug}_start_limit:\n`;
+          yaml += `    name: "${d.name} Start Limit"\n    min: 0\n    max: 100\n    step: 1\n    initial: ${lim.start_limit}\n    unit_of_measurement: "%"\n    icon: mdi:arrow-collapse-up\n`;
+          yaml += `  ${d.slug}_stop_limit:\n`;
+          yaml += `    name: "${d.name} Stop Limit"\n    min: 0\n    max: 100\n    step: 1\n    initial: ${lim.stop_limit}\n    unit_of_measurement: "%"\n    icon: mdi:arrow-collapse-down\n`;
+        });
+      }
+
+      document.getElementById('yamlOutput').innerText = yaml;
+    }
+
+    function closeYamlModal() {
+      document.getElementById('yamlModal').classList.remove('open');
+    }
+
+    function copyYamlCode() {
+      navigator.clipboard.writeText(document.getElementById('yamlOutput').innerText).then(() => {
+        showToast('YAML copied to clipboard!');
+      });
+    }
+
+    function openConnectionModal() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_CONN_KEY) || '{}');
+        document.getElementById('inpHaUrl').value = saved.baseUrl || window.location.origin;
+        document.getElementById('inpHaToken').value = saved.token || '';
+      } catch (e) {}
+      document.getElementById('connModal').classList.add('open');
+    }
+
+    function closeConnectionModal() {
+      document.getElementById('connModal').classList.remove('open');
+    }
+
+    async function saveConnectionSettings() {
+      const baseUrl = document.getElementById('inpHaUrl').value.trim().replace(/\/$/, '') || window.location.origin;
+      const token = document.getElementById('inpHaToken').value.trim();
+      localStorage.setItem(STORAGE_CONN_KEY, JSON.stringify({ baseUrl, token }));
+      closeConnectionModal();
+      await loadAreaRegistry();
+      await refreshAllStates(true);
+    }
+
+    function clearSavedConnection() {
+      localStorage.removeItem(STORAGE_CONN_KEY);
+      document.getElementById('inpHaToken').value = '';
+      showToast('Cleared standalone token');
+    }
+
+    function getBatteryClass(level) {
+      if (level > 60) return 'battery-good';
+      if (level > 25) return 'battery-mid';
+      return 'battery-low';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    function showToast(msg, isErr = false) {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed; bottom: 22px; right: 22px; z-index: 999;
+        background: ${isErr ? 'rgba(239, 68, 68, 0.95)' : 'rgba(18, 24, 38, 0.96)'};
+        border: 1px solid ${isErr ? '#ef4444' : 'var(--gold)'};
+        color: #fff; padding: 11px 18px; border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 12.5px;
+      `;
+      toast.innerText = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3400);
+    }
+
+    async function init() {
+      loadLocalLimits();
+      await loadAreaRegistry();
+      await refreshAllStates(true);
+      setInterval(() => refreshAllStates(false), 2000);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
